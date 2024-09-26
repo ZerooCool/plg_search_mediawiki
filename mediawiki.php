@@ -9,23 +9,15 @@
 
 // based on example from: https://docs.joomla.org/J3.x:Creating_a_search_plugin
 
-// cem
-// 2015-07-02: adaptions marked with [1]
-// 2015-07-21: adaptions marked with [2]
-// 2015-07-22: adaptions marked with [3], started git tracking
-// 2016-03-29: [4], fix Issue #1 https://github.com/rebootl/joomla-plg-search-mediawiki-git/issues/1
-//             (mediawiki db table prefix)
-
 //To prevent accessing the document directly, enter this code:
 // no direct access
 defined( '_JEXEC' ) or die( 'Restricted access' );
 
-// [1] commenting out for now
+// NOTE: commenting out for now
 // Require the component's router file (Replace 'nameofcomponent' with the [1] (wrap)
 // component your providing the search for
 //require_once JPATH_SITE .  '/components/nameofcomponent/helpers/route.php';
 
-// [2] adapted class name
 /**
  * All functions need to get wrapped in a class
  *
@@ -36,8 +28,8 @@ defined( '_JEXEC' ) or die( 'Restricted access' );
 class PlgSearchMediawiki extends JPlugin
 {
 
-    // [1] in the other plugins this is not used anymore e.g. contacts, categories
-    // [1] instead below is used
+    // INFO: in the other plugins this is not used anymore e.g. contacts, categories
+    //       instead below is used
     /**
      * Constructor
      *
@@ -53,8 +45,7 @@ class PlgSearchMediawiki extends JPlugin
     }*/
     protected $autoloadLanguage = true;
 
-    // [2] replaced plugin name
-    // Define a function to return an array of search areas. Replace 'nameofplugin' [1] (wrap)
+    // Define a function to return an array of search areas. Replace 'nameofplugin'
     // with the name of your plugin.
     // Note the value of the array key is normally a language string
     function onContentSearchAreas()
@@ -65,10 +56,8 @@ class PlgSearchMediawiki extends JPlugin
         return $areas;
     }
 
-    // The real function has to be created. The database connection should be made.
-    // The function will be closed with an } at the end of the file.
-    /**
-     * The sql must return the following fields that are used in a common display
+   /**
+     * The function must return the following fields that are used in a common display
      * routine: href, title, section, created, text, browsernav
      *
      * @param string Target search string
@@ -80,11 +69,11 @@ class PlgSearchMediawiki extends JPlugin
     function onContentSearch( $search_str, $mode='', $ordering='', $areas=null )
     {
 
-        // [1] commenting out for now
+        // NOTE: commenting out for now
         //$user = JFactory::getUser();
         //$groups   = implode(',', $user->getAuthorisedViewLevels());
 
-        // [1] this function is default/?, can probably stay as is
+        // NOTE: this function is default, can probably stay as is
         // If the array is not correct, return it:
         if (is_array( $areas )) {
             if (!array_intersect( $areas, array_keys( $this->onContentSearchAreas() ) )) {
@@ -92,159 +81,88 @@ class PlgSearchMediawiki extends JPlugin
             }
         }
 
-        // [1] probably useful, leaving as is
+        // trim leading and trailing expression
+        $search_str = trim($search_str);
+
+        // NOTE: probably useful, leaving as is
         // Return Array when nothing was filled in.
         if ($search_str == '') {
             return array();
         }
 
-        // [2] do so
         // Now retrieve the plugin parameters like this:
         //$nameofparameter = $this->params->get('nameofparameter', defaultsetting );
         $wiki_title = $this->params->get('wiki_title', 'Wiki');
         $wiki_baseurl = $this->params->get('wiki_baseurl', 'http://');
+        $wiki_apiurl = $this->params->get('wiki_apiurl', $wiki_baseurl.'api.php');
 
         $limit = $this->params->get('search_limit', 20);
-        // access a different database
-        // https://docs.joomla.org/Connecting_to_an_external_database
-        $db_settings = array(); //prevent problems
 
-        // Database driver name
-        $db_settings['driver']   = 'mysql';
+        // NOTE: normally srsort should support different options like:
+        // create_timestamp_asc, create_timestamp_desc, incoming_links_asc, incoming_links_desc, just_match,
+        // last_edit_asc, last_edit_desc, none, random, relevance, user_random
+        // however it looks like our wiki only supports relevance,  therefore I'm leaving it out here
 
-        // Database host name
-        $db_settings['host']     = $this->params->get('db_hostname', 'localhost');
-        // User for database authentication
-        $db_settings['user']     = $this->params->get('db_user', '');
-        // Password for database authentication
-        $db_settings['password'] = $this->params->get('db_password', '');
-        // Database name
-        $db_settings['database'] = $this->params->get('db_database', '');
-        // Database prefix (may be empty)
-        $db_settings['prefix']   = $this->params->get('db_prefix', '');
+        // TODO: sorting could be implemented in the plugin itself after making the request
 
-        // initialize db driver
-        $db_wiki = JDatabaseDriver::getInstance( $db_settings );
+        // NOTE: also currently it is unclear if different search modes are supported
 
-        // [2] removed example code
+        // Set API parameters
+        $params = array(
+            'action' => 'query',
+            'list' => 'search',
+            'srsearch' => $search_str,
+            'srlimit' => $limit,
+            'srnamespace' => 0,
+            'srwhat' => 'text',
+            //'srsort' => $srsort,
+            'format' => 'json'
+        );
 
-        // get a new JDatabaseQuery object
-        // https://api.joomla.org/cms-3/classes/JDatabaseQuery.html
-        $query = $db_wiki->getQuery(true);
+        // Set API URL
+        $api_url = $wiki_apiurl.'?'.http_build_query($params);
 
-        // construct a search query
-        // an typical example query from: https://www.mediawiki.org/wiki/Manual:Searchindex_table
-        //
-        // SELECT page_id, page_namespace, page_title
-        //   FROM 'page','searchindex'
-        //   WHERE page_id=si_page
-        //     AND MATCH(si_text) AGAINST('+ltsp' IN BOOLEAN MODE)
-        //     AND page_is_redirect=0 AND page_namespace IN (0) LIMIT 20;
-        //
-        // this returned 10 results when manually entered
-        //
-        // partial hints from: http://forum.joomla.org/viewtopic.php?f=651&t=623563
-        // (topic old mediawiki search plugin for j1.5)
+        // Make API request
+        $ch = curl_init($api_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($ch);
+        curl_close($ch);
 
-        // trim leading and trailing expression
-        $search_str = trim($search_str);
+        // Decode JSON response
+        $data = json_decode($response, true);
 
-        // search mode
-        // possible all, any, exact
-        // exact does not work, since the wiki searchindex text is munged!
-        //
-        // any: 'apple banana'
-        // all: '+apple +banana'
-        switch ($mode) {
-            case 'any':
-                // quote and escape
-                $search_expr_qesc = $db_wiki->quote($search_str, true);
-                break;
-            case 'all':
-            default:
-                // split
-                $words = explode( ' ', $search_str );
-
-                $search_expr_esc = "";
-                foreach ( $words as $word ) {
-                    // escape
-                    $word_esc = $db_wiki->escape($word);
-                    // reassemble
-                    $search_expr_esc .= "+".$word_esc." ";
-                }
-                // quote
-                $search_expr_qesc = $db_wiki->quote($search_expr_esc, false);
+        // Check for errors
+        if (isset($data['error'])) {
+            return array();
         }
 
-        $query->select("page_id, page_namespace, page_title, text.old_text as textpart,text.old_flags,rev_timestamp");
-        // try to get text around search expr, not working yet...
-        //$query->select("page_id, page_namespace, page_title, SUBSTRING(text.old_text, LOCATE(".$search_expr_qesc.", text.old_text)-120, LOCATE(".$search_expr_qesc.", text.old_text)+120)as textpart, rev_timestamp");
-        // [4] fix db table prefix
-        //$query->from("page,searchindex,text,revision");
-        $query->from("#__page AS page, #__searchindex AS searchindex, #__text AS text, #__revision AS revision");
-
-        $query->where("page.page_latest=revision.rev_id AND revision.rev_text_id = text.old_id AND page_id=si_page AND MATCH(si_text) AGAINST(".$search_expr_qesc." IN BOOLEAN MODE) AND page_is_redirect=0 AND page_namespace IN (0)");
-
-        // order
-        // popular is not implemented here...
-        // (--> that means the default is used then)
-        switch ($ordering) {
-            // newest first
-            case 'newest':
-                $order = "rev_timestamp DESC";
-                break;
-            // oldest first
-            case 'oldest':
-                $order = "rev_timestamp ASC";
-                break;
-            // alphabetical ascending
-            case 'alpha':
-                $order = "page_title ASC";
-                break;
-            // default: alphabetical ascending
-            default:
-                $order = "page_title ASC";
-        }
-
-        $query->order($order);
-
-        // set query (execute?)
-        $db_wiki->setQuery( $query, 0, $limit );
-
-        // get results
-        $res_obj_list = $db_wiki->loadObjectList();
-
-        // assemble the result
+        // Assemble the result
         $res_arr = array();
 
-        // [3] finished coding below
-        foreach($res_obj_list as $key => $obj) {
-            // (get the date)
-            $date_obj = DateTime::createFromFormat('YmdHis', $obj->rev_timestamp);
-           $flags = explode( ',', $obj->old_flags );
-           if (in_array( 'gzip', $flags )) {
-              $obj->textpart = substr( gzinflate($obj->textpart), 0, 240);
-           }
-           else  {
-              $obj->textpart = substr($obj->textpart, 0, 240);
-           }
-            $res_arr[$key] = (object) array(
-                'href'        => $wiki_baseurl.'index.php?title='.$obj->page_title,
-                'title'       => $obj->page_title,
-                'section'     => $wiki_title,
-                'created'     => date_format($date_obj, 'Y-m-d H:i:s'),
-                'text'        => $obj->textpart,
-                'browsernav'  => '1'
+        // Loop through search results
+        foreach ($data['query']['search'] as $result) {
+            // Get page title and URL
+            $title = $result['title'];
+            $url = $wiki_baseurl.'index.php?title='.$title;
+
+            // Assemble result array
+            $res_arr[] = (object) array(
+                'href' => $url,
+                'title' => $title,
+                'section' => $wiki_title,
+                'created' => '',
+                'text' => $result['snippet'],
+                'browsernav' => '1'
             );
         }
 
         return $res_arr;
 
 /*
-        // [1] assemble a pseudo result for testing, adapted from tutorial
-        // [1] set variables
+        // assemble a pseudo result for testing, adapted from tutorial
+        // set variables
         $date_now = date("Y-m-d H:i:s");
-        // [1] (get plugin name) copied from below
+        // (get plugin name) copied from below
         $section = JText::_( 'Nameofplugin' );
 
         $rows[] = (object) array(

@@ -48,40 +48,6 @@
                     size="5"
                 />
  
-                <field name="db_hostname" type="text"
-                    default="localhost"
-                    description="PLG_SEARCH_MEDIAWIKI_DBHOSTNAME_DESC"
-                    label="PLG_SEARCH_MEDIAWIKI_DBHOSTNAME_LABEL"
-                    size="25"
-                />
-
-                <field name="db_database" type="text"
-                    default=""
-                    description="PLG_SEARCH_MEDIAWIKI_DBNAME_DESC"
-                    label="PLG_SEARCH_MEDIAWIKI_DBNAME_LABEL"
-                    size="25"
-                />
-
-                <field name="db_user" type="text"
-                    default=""
-                    description="PLG_SEARCH_MEDIAWIKI_DBUSER_DESC"
-                    label="PLG_SEARCH_MEDIAWIKI_DBUSER_LABEL"
-                    size="25"
-                />
-
-                <field name="db_password" type="password"
-                    default=""
-                    description="PLG_SEARCH_MEDIAWIKI_DBPASSWORD_DESC"
-                    label="PLG_SEARCH_MEDIAWIKI_DBPASSWORD_LABEL"
-                    size="25"
-                />
-
-                <field name="db_prefix" type="text"
-                    default=""
-                    description="PLG_SEARCH_MEDIAWIKI_DBPREFIX_DESC"
-                    label="PLG_SEARCH_MEDIAWIKI_DBPREFIX_LABEL"
-                    size="25"
-                />
             </fieldset>
         </fields>
     </config>
