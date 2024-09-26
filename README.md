@@ -1,9 +1,9 @@
-Note:__ This plugin was created for Joomla 3. Joomla 3 has reached End of Life (EOL) and is no longer supported.
+__NOTE: This plugin was created for Joomla 3. Joomla 3 has reached End of Life (EOL) and is no longer supported.
 Consider upgrading to Joomla 4.__
 
 # plg_search_mediawiki
 
-Joomla search plugin for mediawiki database (Joomla 3+)
+Joomla search plugin for mediawiki database (Joomla 3)
 (a simple search plugin)
 
 Install as a normal Joomla plugin.
